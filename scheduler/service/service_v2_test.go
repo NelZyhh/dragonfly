@@ -1861,7 +1861,7 @@ func TestServiceV2_handleRegisterPeerRequest(t *testing.T) {
 				peer.Task.FSM.SetState(standard.TaskStateFailed)
 				peer.Task.StorePeer(peer)
 				peer.Task.StorePeer(seedPeer)
-				seedPeer.FSM.SetState(standard.PeerStateRunning)
+				seedPeer.FSM.SetState(standard.PeerStateFailed)
 
 				assert := assert.New(t)
 				assert.ErrorIs(svc.handleRegisterPeerRequest(context.Background(), stream, peer.Host.ID, peer.Task.ID, peer.ID, req),
@@ -2742,6 +2742,7 @@ func TestServiceV2_handleDownloadPeerBackToSourceFailedRequest(t *testing.T) {
 				gomock.InOrder(
 					mr.PeerManager().Return(peerManager).Times(1),
 					mp.Load(gomock.Eq(peer.ID)).Return(peer, true).Times(1),
+					md.GetApplications().Return([]*managerv2.Application{}, nil).Times(1),
 				)
 
 				peer.FSM.SetState(standard.PeerStateRunning)
@@ -2751,12 +2752,12 @@ func TestServiceV2_handleDownloadPeerBackToSourceFailedRequest(t *testing.T) {
 				peer.Task.DirectPiece = []byte{1}
 
 				assert := assert.New(t)
-				assert.ErrorIs(svc.handleDownloadPeerBackToSourceFailedRequest(context.Background(), peer.ID), status.Error(codes.Internal, "event DownloadFailed inappropriate in current state Failed"))
+				assert.NoError(svc.handleDownloadPeerBackToSourceFailedRequest(context.Background(), peer.ID))
 				assert.Equal(peer.FSM.Current(), standard.PeerStateFailed)
 				assert.Equal(peer.Task.FSM.Current(), standard.TaskStateFailed)
-				assert.Equal(peer.Task.ContentLength.Load(), int64(-1))
-				assert.Equal(peer.Task.TotalPieceCount.Load(), int32(0))
-				assert.Equal(peer.Task.DirectPiece, []byte{})
+				assert.Equal(peer.Task.ContentLength.Load(), int64(1))
+				assert.Equal(peer.Task.TotalPieceCount.Load(), int32(1))
+				assert.Equal(peer.Task.DirectPiece, []byte{1})
 			},
 		},
 		{
@@ -2778,9 +2779,9 @@ func TestServiceV2_handleDownloadPeerBackToSourceFailedRequest(t *testing.T) {
 				assert.NoError(svc.handleDownloadPeerBackToSourceFailedRequest(context.Background(), peer.ID))
 				assert.Equal(peer.FSM.Current(), standard.PeerStateFailed)
 				assert.Equal(peer.Task.FSM.Current(), standard.TaskStateFailed)
-				assert.Equal(peer.Task.ContentLength.Load(), int64(-1))
-				assert.Equal(peer.Task.TotalPieceCount.Load(), int32(0))
-				assert.Equal(peer.Task.DirectPiece, []byte{})
+				assert.Equal(peer.Task.ContentLength.Load(), int64(1))
+				assert.Equal(peer.Task.TotalPieceCount.Load(), int32(1))
+				assert.Equal(peer.Task.DirectPiece, []byte{1})
 			},
 		},
 	}
